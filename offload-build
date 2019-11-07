@@ -92,7 +92,7 @@ makepkg --source || die "unable to make source package"
 # but an empty src dir is created in PWD. Remove once fixed in makepkg.
 rmdir --ignore-fail-on-non-empty src 2>/dev/null || true
 
-mapfile -t files < <(
+mapfile -t result < <(
     # This is sort of bash golfing but it allows running a mildly complex
     # command over ssh with a single connection.
     # shellcheck disable=SC2145
@@ -108,12 +108,17 @@ mapfile -t files < <(
                 printf "%s\n" "" "-> build complete" &&
                 printf "\t%s\n" "$temp"/*
             } >&2 &&
+            printf "%s\n" "$temp" &&
             makepkg --packagelist
 ')
 
 
-if (( ${#files[@]} )); then
+if (( ${#result[@]} )); then
     printf '%s\n' '' '-> copying files...'
     load_makepkg_config
+    files=("${result[@]:1}")
     scp "${files[@]/#/$server:}" "${PKGDEST:-${PWD}}/"
+
+    printf '%s\n' '' '-> cleaning up...'
+    ssh $server 'rm -rf "'"${result[0]}"'"'
 fi
