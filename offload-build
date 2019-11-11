@@ -101,24 +101,33 @@ mapfile -t result < <(
             temp="${XDG_CACHE_HOME:-$HOME/.cache}/offload-build" &&
             mkdir -p "$temp" &&
             temp=$(mktemp -d -p "$temp") &&
+            printf "%s\n" "$temp" &&
             cd "$temp" &&
             {
                 bsdtar --strip-components 1 -xvf - &&
                 script -qefc "'"${archbuild_cmd[@]@Q}"'" /dev/null &&
                 printf "%s\n" "" "-> build complete" &&
-                printf "\t%s\n" "$temp"/*
             } >&2 &&
-            printf "%s\n" "$temp" &&
+            printf "0\n" &&
             makepkg --packagelist
-')
+' || echo $?)
 
+if ! (( ${#result[@]} )); then
+    exit 1
+fi
 
-if (( ${#result[@]} )); then
-    printf '%s\n' '' '-> copying files...'
+temp=${result[0]}
+exitcode=${result[1]}
+files=("${result[@]:2}")
+
+trap 'rm -rf $SRCPKGDEST; ssh $server rm -rf "$temp"' EXIT INT TERM QUIT
+
+if (( "$exitcode" )); then
+    exit "$exitcode"
+fi
+
+if (( ${#files[@]} )); then
+    printf '%s\n' '-> copying files...'
     load_makepkg_config
-    files=("${result[@]:1}")
     scp "${files[@]/#/$server:}" "${PKGDEST:-${PWD}}/"
-
-    printf '%s\n' '' '-> cleaning up...'
-    ssh $server 'rm -rf "'"${result[0]}"'"'
 fi
