@@ -97,7 +97,7 @@ mapfile -t result < <(
     # command over ssh with a single connection.
     # shellcheck disable=SC2145
     cat "$SRCPKGDEST"/*.src.tar.gz |
-        ssh $server '
+        ssh -o ConnectTimeout=1 $server '
             temp="${XDG_CACHE_HOME:-$HOME/.cache}/offload-build" &&
             mkdir -p "$temp" &&
             temp=$(mktemp -d -p "$temp") &&
@@ -114,6 +114,16 @@ mapfile -t result < <(
 
 if ! (( ${#result[@]} )); then
     exit 1
+fi
+
+CTRL+C
+checking for setusershell... yes
+checking for endusershell... ^Cexit with /home/anthraxx/.cache/offload-build/tmp.JqbTOgRyOp
+/usr/bin/offload-build: line 121: exit: /home/anthraxx/.cache/offload-build/tmp.JqbTOgRyOp: numeric argument required
+
+if (( ${#result[@]} == 1 )); then
+    echo "exit with ${result[0]}"
+    exit "${result[0]}"
 fi
 
 temp=${result[0]}
